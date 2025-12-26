@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FNF Extra Keys - v7.1 Editor Fixed</title>
+    <title>FNF Extra Keys - v8.6 Touch Fixed</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
-        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; touch-action: none; }
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; touch-action: none; -webkit-user-select: none; }
         .overlay { position: absolute; inset: 0; background: linear-gradient(180deg, #0b011d 0%, #000 100%); display: flex; flex-direction: column; align-items: center; z-index: 100; padding: 20px; overflow-y: auto; }
         .config-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; width: 90%; max-width: 340px; margin-bottom: 10px; border: 1px solid #333; }
         .btn { border: none; padding: 10px; color: white; font-weight: bold; cursor: pointer; border-radius: 8px; width: 100%; text-transform: uppercase; font-size: 9px; margin: 2px 0; transition: 0.2s; text-align: center;}
@@ -29,8 +29,8 @@
         video { position: fixed; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.4); display: none; }
         canvas { display: none; pointer-events: none; }
         
-        #mobile-btns { position: absolute; inset: 0; display: none; z-index: 40; }
-        .touch-zone { flex: 1; height: 100%; }
+        #mobile-btns { position: absolute; inset: 0; display: none; z-index: 40; width: 100%; height: 100%; }
+        .touch-zone { flex: 1; height: 100%; transition: background 0.1s; border-right: 1px solid rgba(255,255,255,0.05); pointer-events: auto; }
 
         #ui-layer { position: absolute; bottom: 100px; width: 100%; text-align: center; pointer-events: none; z-index: 85; display: none; }
         .stats { font-size: 14px; font-weight: bold; text-shadow: 2px 2px #000; }
@@ -86,7 +86,7 @@
     </div>
 
     <div id="mobile-btns"></div>
-    <video id="video-main" playsinline></video>
+    <video id="video-main" playsinline preload="auto"></video>
     <canvas id="canvas-game"></canvas>
 
     <script>
@@ -107,6 +107,34 @@
             6: { colors: ['#C24B99', '#12FA05', '#F9393F', '#C24B99', '#00FFFF', '#F9393F'], angles: [Math.PI/2, Math.PI, -Math.PI/2, Math.PI/2, 0, -Math.PI/2] },
             9: { colors: ['#C24B99', '#00FFFF', '#12FA05', '#F9393F', '#FFFFFF', '#C24B99', '#00FFFF', '#12FA05', '#F9393F'], angles: [Math.PI/2, 0, Math.PI, -Math.PI/2, 0, Math.PI/2, 0, Math.PI, -Math.PI/2] }
         };
+
+        const layouts = {
+            4: { 'a':0, 's':1, 'w':2, 'd':3, 'arrowleft':0, 'arrowdown':1, 'arrowup':2, 'arrowright':3 },
+            6: { 's':0, 'd':1, 'f':2, 'j':3, 'k':4, 'l':5 },
+            9: { 'a':0, 's':1, 'd':2, 'f':3, ' ':4, 'h':5, 'j':6, 'k':7, 'l':8 }
+        };
+
+        // TECLADO
+        window.addEventListener('keydown', e => { 
+            let k = e.key.toLowerCase();
+            let layout = layouts[keyCount];
+            if(layout[k] !== undefined) {
+                let lane = layout[k];
+                if(!activeLongNotes[lane]) {
+                    receptorScales.player[lane] = 1.4;
+                    startInput(lane);
+                }
+            }
+        });
+        window.addEventListener('keyup', e => {
+            let k = e.key.toLowerCase();
+            let layout = layouts[keyCount];
+            if(layout[k] !== undefined) {
+                let lane = layout[k];
+                receptorScales.player[lane] = 1.0;
+                endInput(lane);
+            }
+        });
 
         function cycleKeys() {
             keyCount = keyCount === 4 ? 6 : (keyCount === 6 ? 9 : 4);
@@ -160,10 +188,32 @@
 
         function setupMobile() {
             const container = document.getElementById('mobile-btns'); container.innerHTML = ''; container.style.display = 'flex';
+            const colors = keyConfigs[keyCount].colors;
             for(let i=0; i<keyCount; i++) {
                 const div = document.createElement('div'); div.className = 'touch-zone';
-                div.onpointerdown = (e) => { e.preventDefault(); receptorScales.player[i] = 1.3; startInput(i); };
-                div.onpointerup = (e) => { e.preventDefault(); receptorScales.player[i] = 1.0; endInput(i); };
+                
+                // EVENTOS TOUCH CORRIGIDOS
+                div.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    div.style.background = `linear-gradient(to top, ${colors[i]}66, transparent)`;
+                    receptorScales.player[i] = 1.4;
+                    startInput(i);
+                });
+                
+                div.addEventListener('pointerup', (e) => {
+                    e.preventDefault();
+                    div.style.background = "transparent";
+                    receptorScales.player[i] = 1.0;
+                    endInput(i);
+                });
+
+                div.addEventListener('pointerleave', (e) => {
+                    e.preventDefault();
+                    div.style.background = "transparent";
+                    receptorScales.player[i] = 1.0;
+                    endInput(i);
+                });
+
                 container.appendChild(div);
             }
         }
@@ -171,7 +221,8 @@
         function startInput(lane) {
             if(mode === 'edit') {
                 let n = { time: video.currentTime, lane: lane, duration: 0, hit: false, side: side };
-                activeLongNotes[lane] = n; chart.notes.push(n);
+                activeLongNotes[lane] = n; 
+                chart.notes.push(n);
             } else if(!settings.auto) {
                 const n = chart.notes.find(n => n.side === 'player' && !n.hit && n.lane === lane && Math.abs(n.time - video.currentTime) < 0.16);
                 if(n) { n.hit = true; health = Math.min(200, health + 4); score += 350; combo++; } 
@@ -179,13 +230,15 @@
                 updateUI();
             }
         }
+
         function endInput(lane) { 
-            if(mode === 'edit' && activeLongNotes[lane]) {
-                // Se a duração for muito pequena, vira uma nota normal (0)
-                if(activeLongNotes[lane].duration < 0.1) activeLongNotes[lane].duration = 0;
-            }
+            if(mode === 'edit' && activeLongNotes[lane]) { 
+                let dur = video.currentTime - activeLongNotes[lane].time;
+                activeLongNotes[lane].duration = dur > 0.1 ? dur : 0; 
+            } 
             activeLongNotes[lane] = null; 
         }
+
         function updateUI() { document.getElementById('score-text').innerText = `Score: ${score} | Combo: ${combo}`; }
 
         function updateLoop() {
@@ -194,9 +247,9 @@
             document.getElementById('health-bar').style.width = (health / 200) * 100 + "%";
 
             const speedMult = scrollSpeed * 180;
-            const laneW = (canvas.width * 0.42) / keyCount;
-            const leftStart = canvas.width * 0.04;
-            const rightStart = canvas.width * 0.54;
+            const laneW = (canvas.width * 0.44) / keyCount;
+            const leftStart = canvas.width * 0.03;
+            const rightStart = canvas.width * 0.53;
 
             for(let i=0; i<keyCount; i++) {
                 receptorScales.player[i] += (1 - receptorScales.player[i]) * 0.2;
@@ -205,7 +258,9 @@
                 drawArrow(leftStart + (i * laneW), 70, i, receptorScales.opponent[i], receptorScales.opponent[i] > 1.1 ? 0.9 : 0.35);
                 drawArrow(rightStart + (i * laneW), 70, i, receptorScales.player[i], receptorScales.player[i] > 1.1 ? 0.9 : 0.35);
 
-                if(mode === 'edit' && activeLongNotes[i]) activeLongNotes[i].duration = video.currentTime - activeLongNotes[i].time;
+                if(mode === 'edit' && activeLongNotes[i]) {
+                    activeLongNotes[i].duration = video.currentTime - activeLongNotes[i].time;
+                }
 
                 chart.notes.forEach(note => {
                     if(note.lane === i) {
@@ -222,15 +277,21 @@
                             }
                         }
 
-                        // CORREÇÃO: Só desenha corpo se a duração for maior que 0.05
-                        if(note.duration > 0.05) {
+                        // LONG NOTES
+                        if(note.duration > 0.02) {
                             let endY = 70 + ((note.time + note.duration - video.currentTime) * speedMult);
-                            ctx.fillStyle = keyConfigs[keyCount].colors[i]; ctx.globalAlpha = 0.4;
-                            ctx.fillRect(x - 6, Math.max(70, y), 12, endY - Math.max(70, y));
+                            let startY = Math.max(70, y);
+                            if(endY > 70 && startY < canvas.height) {
+                                ctx.fillStyle = keyConfigs[keyCount].colors[i]; ctx.globalAlpha = 0.4;
+                                ctx.fillRect(x - (laneW*0.1), startY, (laneW*0.2), endY - startY);
+                                ctx.globalAlpha = 1.0;
+                            }
                         }
                         
-                        if(y > -50 && y < canvas.height + 50 && (!note.hit || (note.duration > 0 && (note.time + note.duration) > video.currentTime))) {
-                            drawArrow(x, y, i, 1, 1);
+                        // CABEÇA DA NOTA
+                        let isStillActive = (note.duration > 0 && (note.time + note.duration) > video.currentTime);
+                        if(y > -50 && y < canvas.height + 50 && (!note.hit || isStillActive)) {
+                            drawArrow(x, Math.max(70, y), i, 1, 1);
                         } else if(mode === 'play' && note.side === 'player' && diff < -0.2 && !note.hit) {
                             note.hit = true; health -= 10; combo = 0; updateUI();
                         }
@@ -242,7 +303,7 @@
         }
 
         function drawArrow(x, y, lane, scale, alpha) {
-            const baseSize = keyCount === 9 ? 16 : (keyCount === 6 ? 20 : 25);
+            const baseSize = keyCount === 9 ? 15 : (keyCount === 6 ? 19 : 24);
             const size = baseSize * scale;
             const conf = keyConfigs[keyCount];
             ctx.save(); ctx.translate(x, y); ctx.globalAlpha = alpha;
@@ -268,7 +329,7 @@
                         chart.notes.push({ time: n[0]/1000, lane: n[1]%keyCount, duration: n[2]/1000, hit: false, side: isPlayer ? 'player' : 'opponent' });
                     });
                 });
-                alert("JSON Psych Importado!");
+                alert("Psych Chart Importada!");
             };
             reader.readAsText(input.files[0]);
         }
@@ -279,7 +340,7 @@
             zip.file("chart.json", JSON.stringify(chart));
             zip.file("video.mp4", currentVideoBlob);
             const content = await zip.generateAsync({type:"blob"});
-            saveAs(content, "projeto_" + keyCount + "k.zip");
+            saveAs(content, "projeto_fnf_touch_fixed.zip");
         }
     </script>
 </body>
