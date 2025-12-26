@@ -3,33 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FNF Extra Keys - v5.9</title>
+    <title>FNF Extra Keys - v7.1 Editor Fixed</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; touch-action: none; }
         .overlay { position: absolute; inset: 0; background: linear-gradient(180deg, #0b011d 0%, #000 100%); display: flex; flex-direction: column; align-items: center; z-index: 100; padding: 20px; overflow-y: auto; }
         .config-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; width: 90%; max-width: 340px; margin-bottom: 10px; border: 1px solid #333; }
-        .btn { border: none; padding: 10px; color: white; font-weight: bold; cursor: pointer; border-radius: 8px; width: 100%; text-transform: uppercase; font-size: 9px; margin: 2px 0; transition: 0.2s; }
+        .btn { border: none; padding: 10px; color: white; font-weight: bold; cursor: pointer; border-radius: 8px; width: 100%; text-transform: uppercase; font-size: 9px; margin: 2px 0; transition: 0.2s; text-align: center;}
         .btn-cyan { background: #00ffff; color: #000; }
         .btn-green { background: #12FA05; color: #000; }
         .btn-purple { background: #a29bfe; color: #000; }
         .btn-red { background: #ff4444; color: white; }
-        .btn-side-enemy { background: #ff7f00; color: #000; }
-        .btn-side-player { background: #a29bfe; color: #000; }
+        .btn-orange { background: #ff7f00; color: #000; }
         
         #settings-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; border: 2px solid #00ffff; padding: 20px; border-radius: 20px; z-index: 200; display: none; width: 280px; }
-        .input-text { background: #1a1a1a; border: 1px solid #00ffff; color: #00ffff; padding: 5px; border-radius: 5px; width: 40px; text-align: center; font-weight: bold; font-size: 11px; }
-        
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; font-size: 11px; }
+
         #editor-ui { position: absolute; bottom: 5px; left: 5px; right: 5px; display: none; z-index: 70; flex-direction: column; background: rgba(0,0,0,0.92); padding: 10px; border-radius: 12px; border: 1px solid #00ffff; }
         .editor-row { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; gap: 5px; }
-        #timeline-bg { width: 100%; height: 6px; background: #333; border-radius: 3px; margin: 5px 0; position: relative; cursor: pointer; }
-        #timeline-fill { height: 100%; background: #ff0000; width: 0%; border-radius: 3px; }
+        .input-text { background: #1a1a1a; border: 1px solid #00ffff; color: #00ffff; padding: 5px; border-radius: 5px; width: 45px; text-align: center; font-size: 11px; }
+        #timeline-bg { width: 100%; height: 8px; background: #333; border-radius: 4px; margin: 5px 0; cursor: pointer; position: relative; }
+        #timeline-fill { height: 100%; background: #ff0000; width: 0%; border-radius: 4px; }
         
         video { position: fixed; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.4); display: none; }
         canvas { display: none; pointer-events: none; }
+        
         #mobile-btns { position: absolute; inset: 0; display: none; z-index: 40; }
         .touch-zone { flex: 1; height: 100%; }
+
+        #ui-layer { position: absolute; bottom: 100px; width: 100%; text-align: center; pointer-events: none; z-index: 85; display: none; }
+        .stats { font-size: 14px; font-weight: bold; text-shadow: 2px 2px #000; }
+
+        #health-container { position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%); width: 250px; height: 10px; background: #ff4444; border: 2px solid #fff; border-radius: 5px; z-index: 80; display: none; overflow: hidden; }
+        #health-bar { height: 100%; width: 50%; background: #12FA05; float: right; }
     </style>
 </head>
 <body>
@@ -37,7 +44,7 @@
     <div id="menu-main" class="overlay">
         <h1 style="color:#00ffff; margin-bottom: 20px; font-size: 24px;">FNF EXTRA KEYS</h1>
         <div class="config-card">
-            <button class="btn btn-purple" id="btn-key-count">4 SETAS</button>
+            <button class="btn btn-purple" id="btn-key-mode" onclick="cycleKeys()">4 SETAS</button>
             <button class="btn btn-green" onclick="startApp('play', true)">JOGAR ZIP</button>
             <input type="file" id="zipFile" accept=".zip" style="display:none">
         </div>
@@ -49,27 +56,29 @@
     </div>
 
     <div id="settings-modal">
-        <h3 style="text-align:center; color:#00ffff; margin-top:0;">AJUSTES</h3>
-        <div class="setting-row">
-            <span>GHOST TAP:</span>
-            <button id="btn-ghost" class="btn btn-green" style="width:60px;" onclick="toggleGhostTap()">ON</button>
-        </div>
-        <button class="btn btn-red" onclick="toggleSettings(false)" style="margin-top:10px;">FECHAR</button>
+        <h3 style="text-align:center; color:#00ffff; margin:0 0 10px 0;">AJUSTES</h3>
+        <div class="setting-row"><span>DANO INIMIGO:</span><button id="set-enemyDmg" class="btn btn-green" onclick="toggleSet('enemyDmg')">ON</button></div>
+        <div class="setting-row"><span>GHOST TAPPING:</span><button id="set-ghostTap" class="btn btn-green" onclick="toggleSet('ghostTap')">ON</button></div>
+        <div class="setting-row"><span>IMORTAL:</span><button id="set-immortal" class="btn btn-red" onclick="toggleSet('immortal')">OFF</button></div>
+        <div class="setting-row"><span>AUTO-BOT:</span><button id="set-auto" class="btn btn-red" onclick="toggleSet('auto')">OFF</button></div>
+        <button class="btn btn-red" onclick="toggleSettings(false)" style="width:100%">FECHAR</button>
     </div>
 
+    <div id="ui-layer"><div id="score-text" class="stats">Score: 0 | Combo: 0</div></div>
+    <div id="health-container"><div id="health-bar"></div></div>
     <button id="btn-exit" class="btn btn-red" style="position:fixed; top:10px; left:10px; width:40px; display:none; z-index:110;" onclick="location.reload()">X</button>
 
     <div id="editor-ui">
         <div id="timeline-bg" onclick="seekVideo(event)"><div id="timeline-fill"></div></div>
         <div class="editor-row">
-            <button id="btn-side-toggle" class="btn btn-side-enemy" style="width:40%" onclick="toggleSide()">TROCAR PARA INIMIGO</button>
+            <button id="btn-side-toggle" class="btn btn-orange" style="width:40%" onclick="toggleSide()">INIMIGO</button>
             <div style="display: flex; gap: 5px;">
-                <div style="text-align:center"><span style="font-size:7px">SPD</span><br><input type="number" id="speed-input-edit" class="input-text" value="2.5" step="0.1" onchange="updateScrollSpeed(this.value)"></div>
-                <div style="text-align:center"><span style="font-size:7px">V-SPD</span><br><input type="number" id="video-speed-input" class="input-text" value="1.0" step="0.1" onchange="setVideoSpeed(this.value)"></div>
+                <div style="text-align:center"><span style="font-size:7px">SPD</span><br><input type="number" id="speed-input" class="input-text" value="2.5" step="0.1" onchange="updateSPD(this.value)"></div>
+                <div style="text-align:center"><span style="font-size:7px">V-SPD</span><br><input type="number" id="v-speed-input" class="input-text" value="1.0" step="0.1" onchange="updateVideoSpeed(this.value)"></div>
             </div>
         </div>
         <div class="editor-row">
-            <button id="btn-play-pause" class="btn btn-cyan" style="width:25%" onclick="togglePlay()">PAUSE</button>
+            <button class="btn btn-cyan" style="width:25%" onclick="togglePlay()">PLAY</button>
             <button class="btn btn-purple" style="width:35%" onclick="document.getElementById('psychInput').click()">PSYCH</button>
             <button class="btn btn-green" style="width:35%" onclick="exportProject()">SALVAR ZIP</button>
         </div>
@@ -81,186 +90,196 @@
     <canvas id="canvas-game"></canvas>
 
     <script>
-        let keyCount = 4, mode = 'play', side = 'player', scrollSpeed = 2.5, ghostTap = true;
+        let keyCount = 4, mode = 'play', side = 'player', scrollSpeed = 2.5, health = 100;
+        let score = 0, combo = 0;
+        let settings = { enemyDmg: true, immortal: false, auto: false, ghostTap: true };
         let chart = { notes: [], keyMode: 4, speed: 2.5 };
         let activeLongNotes = {}; 
+        let receptorScales = { player: [], opponent: [] };
         let currentVideoBlob = null;
+        
         const video = document.getElementById('video-main');
         const canvas = document.getElementById('canvas-game');
         const ctx = canvas.getContext('2d');
-        let receptorScales = { player: [], opponent: [] };
 
-        const configs = { 4: { colors: ['#C24B99', '#00FFFF', '#12FA05', '#F9393F'], angles: [Math.PI/2, 0, Math.PI, -Math.PI/2] } };
+        const keyConfigs = {
+            4: { colors: ['#C24B99', '#00FFFF', '#12FA05', '#F9393F'], angles: [Math.PI/2, 0, Math.PI, -Math.PI/2] },
+            6: { colors: ['#C24B99', '#12FA05', '#F9393F', '#C24B99', '#00FFFF', '#F9393F'], angles: [Math.PI/2, Math.PI, -Math.PI/2, Math.PI/2, 0, -Math.PI/2] },
+            9: { colors: ['#C24B99', '#00FFFF', '#12FA05', '#F9393F', '#FFFFFF', '#C24B99', '#00FFFF', '#12FA05', '#F9393F'], angles: [Math.PI/2, 0, Math.PI, -Math.PI/2, 0, Math.PI/2, 0, Math.PI, -Math.PI/2] }
+        };
 
-        function toggleSettings(show) { document.getElementById('settings-modal').style.display = show ? 'block' : 'none'; }
-        function toggleGhostTap() { ghostTap = !ghostTap; const b = document.getElementById('btn-ghost'); b.innerText = ghostTap ? "ON" : "OFF"; b.className = ghostTap ? "btn btn-green" : "btn btn-red"; }
-        function updateScrollSpeed(v) { scrollSpeed = parseFloat(v) || 2.5; chart.speed = scrollSpeed; }
-        function setVideoSpeed(v) { video.playbackRate = parseFloat(v) || 1.0; }
-        
-        function toggleSide() {
-            const btn = document.getElementById('btn-side-toggle');
-            side = side === 'player' ? 'opponent' : 'player';
-            btn.innerText = side === 'player' ? "TROCAR PARA INIMIGO" : "TROCAR PARA JOGADOR";
-            btn.className = side === 'player' ? "btn btn-side-enemy" : "btn btn-side-player";
+        function cycleKeys() {
+            keyCount = keyCount === 4 ? 6 : (keyCount === 6 ? 9 : 4);
+            document.getElementById('btn-key-mode').innerText = keyCount + " SETAS";
+            chart.keyMode = keyCount;
         }
 
-        async function startApp(targetMode, isZip) {
-            mode = targetMode;
+        function toggleSettings(s) { document.getElementById('settings-modal').style.display = s ? 'block' : 'none'; }
+        function toggleSet(k) { 
+            settings[k] = !settings[k]; 
+            const b = document.getElementById('set-'+k);
+            b.innerText = settings[k] ? "ON" : "OFF";
+            b.className = settings[k] ? "btn btn-green" : "btn btn-red";
+        }
+        function toggleSide() {
+            side = side === 'player' ? 'opponent' : 'player';
+            document.getElementById('btn-side-toggle').innerText = side === 'player' ? "INIMIGO" : "JOGADOR";
+        }
+        function updateSPD(v) { scrollSpeed = parseFloat(v); chart.speed = scrollSpeed; }
+        function updateVideoSpeed(v) { video.playbackRate = parseFloat(v); }
+
+        async function startApp(m, isZip) {
+            mode = m;
             if(isZip) {
                 const file = document.getElementById('zipFile').files[0];
                 if(!file) { document.getElementById('zipFile').click(); return; }
                 const zip = new JSZip(); const contents = await zip.loadAsync(file);
                 for (let filename in contents.files) {
-                    if (filename.endsWith('.mp4')) {
-                        currentVideoBlob = await contents.files[filename].async("blob");
-                        video.src = URL.createObjectURL(currentVideoBlob);
-                    }
+                    if (filename.endsWith('.mp4')) { currentVideoBlob = await contents.files[filename].async("blob"); video.src = URL.createObjectURL(currentVideoBlob); }
                     if (filename.endsWith('.json')) { 
-                        chart = JSON.parse(await contents.files[filename].async("string"));
-                        updateScrollSpeed(chart.speed || 2.5);
+                        chart = JSON.parse(await contents.files[filename].async("string")); 
+                        keyCount = chart.keyMode || 4; scrollSpeed = chart.speed || 2.5;
                     }
                 }
             } else {
                 const vFile = document.getElementById('videoFile').files[0];
                 if(!vFile) return;
-                currentVideoBlob = vFile;
-                video.src = URL.createObjectURL(currentVideoBlob);
-                chart.notes = [];
+                currentVideoBlob = vFile; video.src = URL.createObjectURL(currentVideoBlob);
+                chart.keyMode = keyCount; chart.notes = [];
             }
-            receptorScales.player = new Array(4).fill(1);
-            receptorScales.opponent = new Array(4).fill(1);
+            receptorScales.player = Array(keyCount).fill(1);
+            receptorScales.opponent = Array(keyCount).fill(1);
             document.getElementById('menu-main').style.display = 'none';
             document.getElementById('btn-exit').style.display = 'block';
-            canvas.style.display = 'block'; video.style.display = 'block';
+            if(mode === 'play') { document.getElementById('health-container').style.display = 'block'; document.getElementById('ui-layer').style.display = 'block'; }
             if(mode === 'edit') document.getElementById('editor-ui').style.display = 'flex';
+            canvas.style.display = 'block'; video.style.display = 'block';
             setupMobile(); canvas.width = window.innerWidth; canvas.height = window.innerHeight;
             video.play(); updateLoop();
         }
 
         function setupMobile() {
             const container = document.getElementById('mobile-btns'); container.innerHTML = ''; container.style.display = 'flex';
-            for(let i=0; i<4; i++) {
+            for(let i=0; i<keyCount; i++) {
                 const div = document.createElement('div'); div.className = 'touch-zone';
-                div.onpointerdown = (e) => { e.preventDefault(); startInput(i); };
-                div.onpointerup = (e) => { e.preventDefault(); endInput(i); };
+                div.onpointerdown = (e) => { e.preventDefault(); receptorScales.player[i] = 1.3; startInput(i); };
+                div.onpointerup = (e) => { e.preventDefault(); receptorScales.player[i] = 1.0; endInput(i); };
                 container.appendChild(div);
             }
         }
 
         function startInput(lane) {
-            receptorScales.player[lane] = 1.3;
             if(mode === 'edit') {
-                if (video.paused) {
-                    const idx = chart.notes.findIndex(n => n.lane === lane && n.side === side && Math.abs(n.time - video.currentTime) < 0.1);
-                    if (idx !== -1) { chart.notes.splice(idx, 1); return; }
-                }
-                let newNote = { time: video.currentTime, lane: lane, duration: 0, hit: false, side: side };
-                activeLongNotes[lane] = newNote;
-                chart.notes.push(newNote);
-            } else {
-                const n = chart.notes.find(n => n.side === 'player' && !n.hit && n.lane === lane && Math.abs(n.time - video.currentTime) < 0.15);
-                if(n) n.hit = true;
+                let n = { time: video.currentTime, lane: lane, duration: 0, hit: false, side: side };
+                activeLongNotes[lane] = n; chart.notes.push(n);
+            } else if(!settings.auto) {
+                const n = chart.notes.find(n => n.side === 'player' && !n.hit && n.lane === lane && Math.abs(n.time - video.currentTime) < 0.16);
+                if(n) { n.hit = true; health = Math.min(200, health + 4); score += 350; combo++; } 
+                else if(!settings.ghostTap) { health -= 5; combo = 0; }
+                updateUI();
             }
         }
-
         function endInput(lane) { 
-            receptorScales.player[lane] = 1.0; 
             if(mode === 'edit' && activeLongNotes[lane]) {
-                activeLongNotes[lane] = null;
+                // Se a duração for muito pequena, vira uma nota normal (0)
+                if(activeLongNotes[lane].duration < 0.1) activeLongNotes[lane].duration = 0;
             }
+            activeLongNotes[lane] = null; 
         }
+        function updateUI() { document.getElementById('score-text').innerText = `Score: ${score} | Combo: ${combo}`; }
 
         function updateLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if(mode === 'edit' && video.duration) document.getElementById('timeline-fill').style.width = (video.currentTime / video.duration) * 100 + "%";
-            
-            const speedMult = scrollSpeed * 200;
-            const laneW = canvas.width * 0.11;
-            const leftStart = canvas.width * 0.05; 
-            const rightStart = canvas.width * 0.55; 
+            if(mode === 'edit') document.getElementById('timeline-fill').style.width = (video.currentTime / video.duration) * 100 + "%";
+            document.getElementById('health-bar').style.width = (health / 200) * 100 + "%";
 
-            for(let i=0; i<4; i++) {
-                receptorScales.opponent[i] += (1 - receptorScales.opponent[i]) * 0.2;
-                drawArrow(leftStart + (i * laneW), 80, i, receptorScales.opponent[i], 0.3);
+            const speedMult = scrollSpeed * 180;
+            const laneW = (canvas.width * 0.42) / keyCount;
+            const leftStart = canvas.width * 0.04;
+            const rightStart = canvas.width * 0.54;
+
+            for(let i=0; i<keyCount; i++) {
                 receptorScales.player[i] += (1 - receptorScales.player[i]) * 0.2;
-                drawArrow(rightStart + (i * laneW), 80, i, receptorScales.player[i], 0.3);
-                
-                if(mode === 'edit' && activeLongNotes[i]) {
-                    activeLongNotes[i].duration = video.currentTime - activeLongNotes[i].time;
-                }
+                receptorScales.opponent[i] += (1 - receptorScales.opponent[i]) * 0.2;
+
+                drawArrow(leftStart + (i * laneW), 70, i, receptorScales.opponent[i], receptorScales.opponent[i] > 1.1 ? 0.9 : 0.35);
+                drawArrow(rightStart + (i * laneW), 70, i, receptorScales.player[i], receptorScales.player[i] > 1.1 ? 0.9 : 0.35);
+
+                if(mode === 'edit' && activeLongNotes[i]) activeLongNotes[i].duration = video.currentTime - activeLongNotes[i].time;
 
                 chart.notes.forEach(note => {
                     if(note.lane === i) {
                         let diff = note.time - video.currentTime;
                         let x = (note.side === 'player' ? rightStart : leftStart) + (i * laneW);
-                        let y = 80 + (diff * speedMult);
+                        let y = 70 + (diff * speedMult);
 
-                        if(mode === 'play' && note.side === 'opponent' && diff <= 0 && !note.hit) {
-                            note.hit = true; receptorScales.opponent[i] = 1.3;
-                        }
-
-                        // DESENHAR LONG NOTE (SUSTAIN)
-                        if(note.duration > 0) {
-                            let endY = 80 + ((note.time + note.duration - video.currentTime) * speedMult);
-                            let startY = Math.max(80, y);
-                            if(endY > 80) {
-                                ctx.fillStyle = configs[4].colors[i];
-                                ctx.globalAlpha = 0.4;
-                                ctx.fillRect(x - 6, startY, 12, endY - startY);
-                                ctx.globalAlpha = 1.0;
+                        if(mode === 'play') {
+                            if(settings.auto && note.side === 'player' && diff <= 0 && !note.hit) { 
+                                note.hit = true; receptorScales.player[i] = 1.35; score += 350; combo++; updateUI();
+                            }
+                            if(note.side === 'opponent' && diff <= 0 && !note.hit) { 
+                                note.hit = true; receptorScales.opponent[i] = 1.35; if(settings.enemyDmg) health -= 2; 
                             }
                         }
 
-                        // DESENHAR SETA
+                        // CORREÇÃO: Só desenha corpo se a duração for maior que 0.05
+                        if(note.duration > 0.05) {
+                            let endY = 70 + ((note.time + note.duration - video.currentTime) * speedMult);
+                            ctx.fillStyle = keyConfigs[keyCount].colors[i]; ctx.globalAlpha = 0.4;
+                            ctx.fillRect(x - 6, Math.max(70, y), 12, endY - Math.max(70, y));
+                        }
+                        
                         if(y > -50 && y < canvas.height + 50 && (!note.hit || (note.duration > 0 && (note.time + note.duration) > video.currentTime))) {
                             drawArrow(x, y, i, 1, 1);
+                        } else if(mode === 'play' && note.side === 'player' && diff < -0.2 && !note.hit) {
+                            note.hit = true; health -= 10; combo = 0; updateUI();
                         }
                     }
                 });
             }
+            if(health <= 0 && !settings.immortal) { alert("GAME OVER"); location.reload(); }
             requestAnimationFrame(updateLoop);
         }
 
         function drawArrow(x, y, lane, scale, alpha) {
-            const size = 30;
-            ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale); ctx.globalAlpha = alpha;
-            ctx.fillStyle = configs[4].colors[lane];
-            ctx.rotate(configs[4].angles[lane]);
+            const baseSize = keyCount === 9 ? 16 : (keyCount === 6 ? 20 : 25);
+            const size = baseSize * scale;
+            const conf = keyConfigs[keyCount];
+            ctx.save(); ctx.translate(x, y); ctx.globalAlpha = alpha;
+            ctx.fillStyle = conf.colors[lane] || '#fff'; ctx.rotate(conf.angles[lane]);
             ctx.beginPath();
             ctx.moveTo(-size, size/3); ctx.lineTo(0, -size); ctx.lineTo(size, size/3);
             ctx.lineTo(size/2, size/3); ctx.lineTo(size/2, size); ctx.lineTo(-size/2, size); ctx.lineTo(-size/2, size/3);
-            ctx.closePath(); ctx.fill(); ctx.restore();
+            ctx.closePath(); ctx.fill(); 
+            ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
+            ctx.restore();
         }
 
-        function togglePlay() { video.paused ? video.play() : video.pause(); document.getElementById('btn-play-pause').innerText = video.paused ? "PLAY" : "PAUSE"; }
+        function togglePlay() { video.paused ? video.play() : video.pause(); }
         function seekVideo(e) { const rect = document.getElementById('timeline-bg').getBoundingClientRect(); video.currentTime = ((e.clientX - rect.left) / rect.width) * video.duration; }
 
         function importPsychChart(input) {
-            const file = input.files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
                 const psych = JSON.parse(e.target.result); chart.notes = [];
                 psych.song.notes.forEach(sec => {
                     sec.sectionNotes.forEach(n => {
-                        let isPlayer = sec.mustHitSection ? (n[1] < 4) : (n[1] > 3);
-                        chart.notes.push({ time: n[0]/1000, lane: n[1]%4, duration: n[2]/1000, hit: false, side: isPlayer ? 'player' : 'opponent' });
+                        let isPlayer = sec.mustHitSection ? (n[1] < 4) : (n[1] >= 4);
+                        chart.notes.push({ time: n[0]/1000, lane: n[1]%keyCount, duration: n[2]/1000, hit: false, side: isPlayer ? 'player' : 'opponent' });
                     });
                 });
-                alert("Importado!");
+                alert("JSON Psych Importado!");
             };
-            reader.readAsText(file);
+            reader.readAsText(input.files[0]);
         }
 
         async function exportProject() {
-            if(!currentVideoBlob) return alert("Erro: Vídeo não encontrado.");
-            let fileName = prompt("Nome do projeto:", "meu_mapa");
-            if (!fileName) return;
+            if(!currentVideoBlob) return;
             const zip = new JSZip();
-            chart.speed = scrollSpeed;
             zip.file("chart.json", JSON.stringify(chart));
             zip.file("video.mp4", currentVideoBlob);
             const content = await zip.generateAsync({type:"blob"});
-            saveAs(content, fileName + ".zip");
+            saveAs(content, "projeto_" + keyCount + "k.zip");
         }
     </script>
 </body>
