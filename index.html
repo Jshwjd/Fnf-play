@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FNF Extra Keys - v5.9</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; touch-action: none; }
+        .overlay { position: absolute; inset: 0; background: linear-gradient(180deg, #0b011d 0%, #000 100%); display: flex; flex-direction: column; align-items: center; z-index: 100; padding: 20px; overflow-y: auto; }
+        .config-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; width: 90%; max-width: 340px; margin-bottom: 10px; border: 1px solid #333; }
+        .btn { border: none; padding: 10px; color: white; font-weight: bold; cursor: pointer; border-radius: 8px; width: 100%; text-transform: uppercase; font-size: 9px; margin: 2px 0; transition: 0.2s; }
+        .btn-cyan { background: #00ffff; color: #000; }
+        .btn-green { background: #12FA05; color: #000; }
+        .btn-purple { background: #a29bfe; color: #000; }
+        .btn-red { background: #ff4444; color: white; }
+        .btn-side-enemy { background: #ff7f00; color: #000; }
+        .btn-side-player { background: #a29bfe; color: #000; }
+        
+        #settings-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; border: 2px solid #00ffff; padding: 20px; border-radius: 20px; z-index: 200; display: none; width: 280px; }
+        .input-text { background: #1a1a1a; border: 1px solid #00ffff; color: #00ffff; padding: 5px; border-radius: 5px; width: 40px; text-align: center; font-weight: bold; font-size: 11px; }
+        
+        #editor-ui { position: absolute; bottom: 5px; left: 5px; right: 5px; display: none; z-index: 70; flex-direction: column; background: rgba(0,0,0,0.92); padding: 10px; border-radius: 12px; border: 1px solid #00ffff; }
+        .editor-row { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; gap: 5px; }
+        #timeline-bg { width: 100%; height: 6px; background: #333; border-radius: 3px; margin: 5px 0; position: relative; cursor: pointer; }
+        #timeline-fill { height: 100%; background: #ff0000; width: 0%; border-radius: 3px; }
+        
+        video { position: fixed; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.4); display: none; }
+        canvas { display: none; pointer-events: none; }
+        #mobile-btns { position: absolute; inset: 0; display: none; z-index: 40; }
+        .touch-zone { flex: 1; height: 100%; }
+    </style>
+</head>
+<body>
+
+    <div id="menu-main" class="overlay">
+        <h1 style="color:#00ffff; margin-bottom: 20px; font-size: 24px;">FNF EXTRA KEYS</h1>
+        <div class="config-card">
+            <button class="btn btn-purple" id="btn-key-count">4 SETAS</button>
+            <button class="btn btn-green" onclick="startApp('play', true)">JOGAR ZIP</button>
+            <input type="file" id="zipFile" accept=".zip" style="display:none">
+        </div>
+        <div class="config-card">
+            <input type="file" id="videoFile" accept="video/mp4" style="width:100%; margin-bottom: 5px;">
+            <button class="btn btn-cyan" onclick="startApp('edit', false)">MODO EDITOR</button>
+        </div>
+        <button class="btn btn-purple" style="width: 200px;" onclick="toggleSettings(true)">⚙️ CONFIGURAÇÕES</button>
+    </div>
+
+    <div id="settings-modal">
+        <h3 style="text-align:center; color:#00ffff; margin-top:0;">AJUSTES</h3>
+        <div class="setting-row">
+            <span>GHOST TAP:</span>
+            <button id="btn-ghost" class="btn btn-green" style="width:60px;" onclick="toggleGhostTap()">ON</button>
+        </div>
+        <button class="btn btn-red" onclick="toggleSettings(false)" style="margin-top:10px;">FECHAR</button>
+    </div>
+
+    <button id="btn-exit" class="btn btn-red" style="position:fixed; top:10px; left:10px; width:40px; display:none; z-index:110;" onclick="location.reload()">X</button>
+
+    <div id="editor-ui">
+        <div id="timeline-bg" onclick="seekVideo(event)"><div id="timeline-fill"></div></div>
+        <div class="editor-row">
+            <button id="btn-side-toggle" class="btn btn-side-enemy" style="width:40%" onclick="toggleSide()">TROCAR PARA INIMIGO</button>
+            <div style="display: flex; gap: 5px;">
+                <div style="text-align:center"><span style="font-size:7px">SPD</span><br><input type="number" id="speed-input-edit" class="input-text" value="2.5" step="0.1" onchange="updateScrollSpeed(this.value)"></div>
+                <div style="text-align:center"><span style="font-size:7px">V-SPD</span><br><input type="number" id="video-speed-input" class="input-text" value="1.0" step="0.1" onchange="setVideoSpeed(this.value)"></div>
+            </div>
+        </div>
+        <div class="editor-row">
+            <button id="btn-play-pause" class="btn btn-cyan" style="width:25%" onclick="togglePlay()">PAUSE</button>
+            <button class="btn btn-purple" style="width:35%" onclick="document.getElementById('psychInput').click()">PSYCH</button>
+            <button class="btn btn-green" style="width:35%" onclick="exportProject()">SALVAR ZIP</button>
+        </div>
+        <input type="file" id="psychInput" accept=".json" style="display:none" onchange="importPsychChart(this)">
+    </div>
+
+    <div id="mobile-btns"></div>
+    <video id="video-main" playsinline></video>
+    <canvas id="canvas-game"></canvas>
+
+    <script>
+        let keyCount = 4, mode = 'play', side = 'player', scrollSpeed = 2.5, ghostTap = true;
+        let chart = { notes: [], keyMode: 4, speed: 2.5 };
+        let activeLongNotes = {}; 
+        let currentVideoBlob = null;
+        const video = document.getElementById('video-main');
+        const canvas = document.getElementById('canvas-game');
+        const ctx = canvas.getContext('2d');
+        let receptorScales = { player: [], opponent: [] };
+
+        const configs = { 4: { colors: ['#C24B99', '#00FFFF', '#12FA05', '#F9393F'], angles: [Math.PI/2, 0, Math.PI, -Math.PI/2] } };
+
+        function toggleSettings(show) { document.getElementById('settings-modal').style.display = show ? 'block' : 'none'; }
+        function toggleGhostTap() { ghostTap = !ghostTap; const b = document.getElementById('btn-ghost'); b.innerText = ghostTap ? "ON" : "OFF"; b.className = ghostTap ? "btn btn-green" : "btn btn-red"; }
+        function updateScrollSpeed(v) { scrollSpeed = parseFloat(v) || 2.5; chart.speed = scrollSpeed; }
+        function setVideoSpeed(v) { video.playbackRate = parseFloat(v) || 1.0; }
+        
+        function toggleSide() {
+            const btn = document.getElementById('btn-side-toggle');
+            side = side === 'player' ? 'opponent' : 'player';
+            btn.innerText = side === 'player' ? "TROCAR PARA INIMIGO" : "TROCAR PARA JOGADOR";
+            btn.className = side === 'player' ? "btn btn-side-enemy" : "btn btn-side-player";
+        }
+
+        async function startApp(targetMode, isZip) {
+            mode = targetMode;
+            if(isZip) {
+                const file = document.getElementById('zipFile').files[0];
+                if(!file) { document.getElementById('zipFile').click(); return; }
+                const zip = new JSZip(); const contents = await zip.loadAsync(file);
+                for (let filename in contents.files) {
+                    if (filename.endsWith('.mp4')) {
+                        currentVideoBlob = await contents.files[filename].async("blob");
+                        video.src = URL.createObjectURL(currentVideoBlob);
+                    }
+                    if (filename.endsWith('.json')) { 
+                        chart = JSON.parse(await contents.files[filename].async("string"));
+                        updateScrollSpeed(chart.speed || 2.5);
+                    }
+                }
+            } else {
+                const vFile = document.getElementById('videoFile').files[0];
+                if(!vFile) return;
+                currentVideoBlob = vFile;
+                video.src = URL.createObjectURL(currentVideoBlob);
+                chart.notes = [];
+            }
+            receptorScales.player = new Array(4).fill(1);
+            receptorScales.opponent = new Array(4).fill(1);
+            document.getElementById('menu-main').style.display = 'none';
+            document.getElementById('btn-exit').style.display = 'block';
+            canvas.style.display = 'block'; video.style.display = 'block';
+            if(mode === 'edit') document.getElementById('editor-ui').style.display = 'flex';
+            setupMobile(); canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            video.play(); updateLoop();
+        }
+
+        function setupMobile() {
+            const container = document.getElementById('mobile-btns'); container.innerHTML = ''; container.style.display = 'flex';
+            for(let i=0; i<4; i++) {
+                const div = document.createElement('div'); div.className = 'touch-zone';
+                div.onpointerdown = (e) => { e.preventDefault(); startInput(i); };
+                div.onpointerup = (e) => { e.preventDefault(); endInput(i); };
+                container.appendChild(div);
+            }
+        }
+
+        function startInput(lane) {
+            receptorScales.player[lane] = 1.3;
+            if(mode === 'edit') {
+                if (video.paused) {
+                    const idx = chart.notes.findIndex(n => n.lane === lane && n.side === side && Math.abs(n.time - video.currentTime) < 0.1);
+                    if (idx !== -1) { chart.notes.splice(idx, 1); return; }
+                }
+                let newNote = { time: video.currentTime, lane: lane, duration: 0, hit: false, side: side };
+                activeLongNotes[lane] = newNote;
+                chart.notes.push(newNote);
+            } else {
+                const n = chart.notes.find(n => n.side === 'player' && !n.hit && n.lane === lane && Math.abs(n.time - video.currentTime) < 0.15);
+                if(n) n.hit = true;
+            }
+        }
+
+        function endInput(lane) { 
+            receptorScales.player[lane] = 1.0; 
+            if(mode === 'edit' && activeLongNotes[lane]) {
+                activeLongNotes[lane] = null;
+            }
+        }
+
+        function updateLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if(mode === 'edit' && video.duration) document.getElementById('timeline-fill').style.width = (video.currentTime / video.duration) * 100 + "%";
+            
+            const speedMult = scrollSpeed * 200;
+            const laneW = canvas.width * 0.11;
+            const leftStart = canvas.width * 0.05; 
+            const rightStart = canvas.width * 0.55; 
+
+            for(let i=0; i<4; i++) {
+                receptorScales.opponent[i] += (1 - receptorScales.opponent[i]) * 0.2;
+                drawArrow(leftStart + (i * laneW), 80, i, receptorScales.opponent[i], 0.3);
+                receptorScales.player[i] += (1 - receptorScales.player[i]) * 0.2;
+                drawArrow(rightStart + (i * laneW), 80, i, receptorScales.player[i], 0.3);
+                
+                if(mode === 'edit' && activeLongNotes[i]) {
+                    activeLongNotes[i].duration = video.currentTime - activeLongNotes[i].time;
+                }
+
+                chart.notes.forEach(note => {
+                    if(note.lane === i) {
+                        let diff = note.time - video.currentTime;
+                        let x = (note.side === 'player' ? rightStart : leftStart) + (i * laneW);
+                        let y = 80 + (diff * speedMult);
+
+                        if(mode === 'play' && note.side === 'opponent' && diff <= 0 && !note.hit) {
+                            note.hit = true; receptorScales.opponent[i] = 1.3;
+                        }
+
+                        // DESENHAR LONG NOTE (SUSTAIN)
+                        if(note.duration > 0) {
+                            let endY = 80 + ((note.time + note.duration - video.currentTime) * speedMult);
+                            let startY = Math.max(80, y);
+                            if(endY > 80) {
+                                ctx.fillStyle = configs[4].colors[i];
+                                ctx.globalAlpha = 0.4;
+                                ctx.fillRect(x - 6, startY, 12, endY - startY);
+                                ctx.globalAlpha = 1.0;
+                            }
+                        }
+
+                        // DESENHAR SETA
+                        if(y > -50 && y < canvas.height + 50 && (!note.hit || (note.duration > 0 && (note.time + note.duration) > video.currentTime))) {
+                            drawArrow(x, y, i, 1, 1);
+                        }
+                    }
+                });
+            }
+            requestAnimationFrame(updateLoop);
+        }
+
+        function drawArrow(x, y, lane, scale, alpha) {
+            const size = 30;
+            ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale); ctx.globalAlpha = alpha;
+            ctx.fillStyle = configs[4].colors[lane];
+            ctx.rotate(configs[4].angles[lane]);
+            ctx.beginPath();
+            ctx.moveTo(-size, size/3); ctx.lineTo(0, -size); ctx.lineTo(size, size/3);
+            ctx.lineTo(size/2, size/3); ctx.lineTo(size/2, size); ctx.lineTo(-size/2, size); ctx.lineTo(-size/2, size/3);
+            ctx.closePath(); ctx.fill(); ctx.restore();
+        }
+
+        function togglePlay() { video.paused ? video.play() : video.pause(); document.getElementById('btn-play-pause').innerText = video.paused ? "PLAY" : "PAUSE"; }
+        function seekVideo(e) { const rect = document.getElementById('timeline-bg').getBoundingClientRect(); video.currentTime = ((e.clientX - rect.left) / rect.width) * video.duration; }
+
+        function importPsychChart(input) {
+            const file = input.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const psych = JSON.parse(e.target.result); chart.notes = [];
+                psych.song.notes.forEach(sec => {
+                    sec.sectionNotes.forEach(n => {
+                        let isPlayer = sec.mustHitSection ? (n[1] < 4) : (n[1] > 3);
+                        chart.notes.push({ time: n[0]/1000, lane: n[1]%4, duration: n[2]/1000, hit: false, side: isPlayer ? 'player' : 'opponent' });
+                    });
+                });
+                alert("Importado!");
+            };
+            reader.readAsText(file);
+        }
+
+        async function exportProject() {
+            if(!currentVideoBlob) return alert("Erro: Vídeo não encontrado.");
+            let fileName = prompt("Nome do projeto:", "meu_mapa");
+            if (!fileName) return;
+            const zip = new JSZip();
+            chart.speed = scrollSpeed;
+            zip.file("chart.json", JSON.stringify(chart));
+            zip.file("video.mp4", currentVideoBlob);
+            const content = await zip.generateAsync({type:"blob"});
+            saveAs(content, fileName + ".zip");
+        }
+    </script>
+</body>
+</html>
+
